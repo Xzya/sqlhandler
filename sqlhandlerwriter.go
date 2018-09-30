@@ -3,6 +3,7 @@ package sqlhandler
 import (
 	"github.com/clipperhouse/typewriter"
 	"io"
+	"text/template"
 )
 
 func init() {
@@ -58,13 +59,26 @@ func (sw *SQLHandlerWriter) Write(w io.Writer, typ typewriter.Type) error {
 
 	for _, v := range tag.Values {
 		m := model{
-			Type:          typ,
-			HandlerName:   HandlerName(typ),
+			Type:           typ,
+			HandlerName:    HandlerName(typ),
 			TypeParameters: v.TypeParameters,
-			TagValue:      v,
+			TagValue:       v,
 		}
 
-		tmpl, err := templates.ByTagValue(typ, v)
+		var (
+			tmpl *template.Template
+			err  error
+		)
+
+		// in order to support dynamic parameters for some templates, we must manually parse them
+		switch v.Name {
+		case "FindAssociation":
+			tmpl, err = findAssociation.Parse()
+		case "FindAssociations":
+			tmpl, err = findAssociations.Parse()
+		default:
+			tmpl, err = templates.ByTagValue(typ, v)
+		}
 
 		if err != nil {
 			return err

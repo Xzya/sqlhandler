@@ -14,7 +14,8 @@ This package uses [gorm](https://github.com/jinzhu/gorm) as the ORM.
 | `Find` | Adds a `Find` handler which accepts dynamic `where` clause as parameter. |
 | `FindAll` | Adds a `FindAll` handler which returns all rows of that model. |
 | `FindByID` | Adds a `FindByID` handler which returns the row with the given ID |
-| `FindAssociation[T]` | Adds a `Find<TYPE><T>Association` handler which gets the given association for the model (see example usage below) |
+| `FindAssociation[T1,T2,...]` | Adds a `Find<TYPE><T>Association` handler which gets the given association for the model (see example usage below). |
+| `FindAssociations[T1,T2,...]` | Adds a `Find<TYPE>Associations` handler which gets all specified associations (see example usage below). Note: This requires you to also use `FindAssociation` for each specified type. |
 | `Delete` | Adds a `Delete` handler which accepts dynamic `where` clause as parameter. |
 | `DeleteByID` | Adds a `DeleteByID` handler which deletes the row with the given ID |
 
@@ -27,7 +28,7 @@ import "github.com/jinzhu/gorm"
 
 //go:generate gen -f
 
-// +gen sqlhandler:"Create,Find,FindByID,FindAll,FindAssociation[PersonalInfo],Delete,DeleteByID"
+// +gen sqlhandler:"Create,Find,FindByID,FindAll,FindAssociation[PersonalInfo,Projects],FindAssociations[PersonalInfo,Projects],Delete,DeleteByID"
 type Account struct {
 	gorm.Model
 
@@ -35,6 +36,7 @@ type Account struct {
 	Password string
 
 	PersonalInfo PersonalInfo
+	Projects     []Project
 }
 
 type PersonalInfo struct {
@@ -45,6 +47,14 @@ type PersonalInfo struct {
 	FirstName string
 	LastName  string
 }
+
+type Project struct {
+	gorm.Model
+
+	Name string
+}
+
+type Projects []Project
 ```
 
 Produces the following code
@@ -112,6 +122,25 @@ func (h AccountHandler) FindAll() ([]Account, error) {
 // FindAccountPersonalInfoAssociation finds the Account's PersonalInfo association
 func FindAccountPersonalInfoAssociation(db *gorm.DB, item *Account) error {
 	return db.Model(item).Association("PersonalInfo").Find(&item.PersonalInfo).Error
+}
+
+// FindAccountProjectsAssociation finds the Account's Projects association
+func FindAccountProjectsAssociation(db *gorm.DB, item *Account) error {
+	return db.Model(item).Association("Projects").Find(&item.Projects).Error
+}
+
+// FindAccountAssociations finds the Account's associations
+func FindAccountAssociations(db *gorm.DB, item *Account) error {
+
+	if err := FindAccountPersonalInfoAssociation(db, item); err != nil {
+		return err
+	}
+
+	if err := FindAccountProjectsAssociation(db, item); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Delete deletes a Account that matches the given conditions
